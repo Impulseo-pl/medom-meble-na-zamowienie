@@ -816,3 +816,737 @@ footer{view-transition-name:mt-foot}
 .op-card blockquote{margin:0;font-size:var(--text-base);line-height:1.65;color:var(--ink-soft)}
 .op-star{color:var(--accent);display:flex;gap:2px}
 .op-autor{font-size:var(--text-sm);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+
+
+/* ============================================================
+   POLISH 12.08.2026 — „płynność i przejścia" (prośba Szymona)
+   Doklejone na SAM KONIEC: wygrywa kaskadę, nie rusza reguł w miejscu.
+   Zasady: żaden efekt nie zależy od koloru-płaszczyzny (akcent zostaje
+   akcentem), zero ruchu geometrycznego na zdjęciu hero (shimmer!),
+   wszystko pod prefers-reduced-motion.
+   ============================================================ */
+
+/* ---------- 1) HOVER ZDJĘĆ — AKTUALNY standard (K.+Szymon 09.08.2026) ----------
+   Zoom 1.05 przy 1,4 s i krzywej cubic-bezier(.16,.84,.44,1): przy tak długim
+   czasie mocniejszy kadr nie skacze, tylko „oddycha". Poprzednie 1.02/.55 s
+   było dobrane pod szybki ruch i czytało się jak drgnięcie. */
+:root{
+  --img-zoom:1.05;
+  --img-dur:1.4s;
+  --img-ease:cubic-bezier(.16,.84,.44,1);
+  --img-rest:brightness(.96) saturate(.99);
+  --img-hot:brightness(1.07) saturate(1.05);
+}
+.tile img,.gateway img,.m-tile img,.split-art img,.svc-row-art img{
+  transition:transform var(--img-dur) var(--img-ease),filter var(--img-dur) var(--img-ease)}
+@media(hover:hover){
+  .split-art,.svc-row-art{overflow:hidden}
+  .split-art img,.svc-row-art img{filter:var(--img-rest)}
+  .split-art:hover img,.svc-row-art:hover img{transform:scale(var(--img-zoom));filter:var(--img-hot)}
+}
+
+/* podpis kafla dojeżdża tym samym, miękkim ruchem co zdjęcie */
+.tile .cap{transition:opacity .5s var(--mt-ease),transform .5s var(--mt-ease)}
+
+/* ---------- 2) KARTY — jeden, spójny „lift" ---------- */
+.op-card{transition:transform .5s var(--mt-ease),box-shadow .45s ease,border-color .45s ease}
+@media(hover:hover){
+  .op-card:hover{transform:translateY(-4px);box-shadow:var(--sh-md);border-color:color-mix(in srgb,var(--accent) 38%,var(--line))}
+}
+.tile,.gateway{transition:transform .6s var(--mt-ease),box-shadow .45s ease}
+@media(hover:hover) and (min-width:760px){
+  .gateway:hover{transform:translateY(-5px)}
+  .gateway .g-ttl{transition:transform .6s var(--mt-ease)}
+  .gateway:hover .g-ttl{transform:translateY(-4px)}
+}
+
+/* ---------- 3) POŚWIATA POD KURSOREM na kaflach ze zdjęciem ----------
+   Delikatna biel (nie kolor marki) sunąca za myszą - kafel reaguje na obecność
+   ręki, zanim cokolwiek klikniesz. JS podaje --mx/--my; bez JS nic nie widać. */
+@media (hover:hover) and (min-width:900px) and (prefers-reduced-motion:no-preference){
+  .pol-glow{position:relative}
+  .pol-glow::before{
+    content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+    background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),
+      rgba(255,255,255,.16),transparent 62%);
+    opacity:0;transition:opacity .5s ease;mix-blend-mode:soft-light;
+  }
+  .pol-glow:hover::before{opacity:1}
+}
+
+/* ---------- 4) NAWIGACJA — wjeżdża raz, przy wejściu na stronę ---------- */
+@media (prefers-reduced-motion:no-preference){
+  @keyframes polNavIn{from{opacity:0;translate:0 -100%}to{opacity:1;translate:0 0}}
+  .nav{animation:polNavIn .7s cubic-bezier(.16,.84,.44,1) both}
+  .nav-links a::after{transition:width .45s var(--mt-ease)}
+  .brand-logo{transition:height .35s var(--mt-ease),opacity .35s ease}
+}
+
+/* ---------- 5) PRZEJŚCIA MIĘDZY PODSTRONAMI ----------
+   a) przeglądarki z View Transitions (Chrome, nowe Safari): nowa strona nie tylko
+      przenika, ale delikatnie podjeżdża - ruch ma kierunek czytania.
+   b) reszta (Firefox, starsze Safari): fallback na klasie .pol-out, którą wkłada JS
+      przy kliknięciu w link. Bez JS strona nawiguje zwyczajnie - zero ryzyka. */
+@media (prefers-reduced-motion:no-preference){
+  ::view-transition-new(root){animation:polVtIn .5s cubic-bezier(.16,.84,.44,1) both}
+  @keyframes polVtIn{from{opacity:0;translate:0 14px}to{opacity:1;translate:0 0}}
+}
+.brand{view-transition-name:pol-brand}
+html.pol-fb-on body{transition:opacity .26s ease,translate .26s ease}
+html.pol-fb-on.pol-out body{opacity:0;translate:0 -10px}
+
+/* ---------- 6) LIGHTBOX GALERII ----------
+   Klik w zdjęcie otwiera je na pełnym ekranie: tło przygasa i rozmywa się,
+   zdjęcie wchodzi fade+scale. Strzałki, ESC, klik w tło. */
+.pol-zoom{cursor:zoom-in}
+.pol-lb{
+  position:fixed;inset:0;z-index:200;display:grid;place-items:center;
+  padding:clamp(12px,3vw,40px);
+  background:rgba(20,12,13,.82);
+  opacity:0;visibility:hidden;
+  transition:opacity .45s ease,visibility .45s ease;
+}
+@supports (backdrop-filter:blur(4px)){.pol-lb{backdrop-filter:blur(8px) saturate(120%)}}
+.pol-lb.is-open{opacity:1;visibility:visible}
+.pol-lb-fig{margin:0;display:flex;flex-direction:column;align-items:center;gap:var(--space-4);max-width:100%}
+.pol-lb img{
+  max-width:min(96vw,1400px);max-height:82svh;width:auto;height:auto;
+  border-radius:var(--r-sm);box-shadow:0 30px 80px -30px rgba(0,0,0,.75);
+  opacity:0;scale:.965;
+  transition:opacity .5s cubic-bezier(.16,.84,.44,1),scale .6s cubic-bezier(.16,.84,.44,1);
+}
+.pol-lb.is-open img{opacity:1;scale:1}
+.pol-lb figcaption{
+  color:#fff;font-size:var(--text-sm);letter-spacing:.02em;text-align:center;
+  opacity:0;translate:0 8px;transition:opacity .5s ease .12s,translate .5s ease .12s}
+.pol-lb.is-open figcaption{opacity:.92;translate:0 0}
+.pol-lb figcaption b{font-weight:600}
+.pol-lb figcaption span{opacity:.6;margin-left:var(--space-3)}
+.pol-lb-btn{
+  position:absolute;top:50%;translate:0 -50%;
+  width:52px;height:52px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.28);
+  color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;
+  transition:background .3s ease,transform .3s var(--mt-ease),border-color .3s ease;
+}
+.pol-lb-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.5)}
+.pol-lb-prev{left:clamp(8px,2vw,28px)}
+.pol-lb-next{right:clamp(8px,2vw,28px)}
+.pol-lb-prev:hover{transform:translateX(-3px)}
+.pol-lb-next:hover{transform:translateX(3px)}
+.pol-lb-close{
+  position:absolute;top:clamp(10px,2vw,26px);right:clamp(10px,2vw,26px);
+  width:46px;height:46px;border-radius:50%;translate:0 0;
+}
+.pol-lb-close:hover{transform:rotate(90deg)}
+@media(max-width:700px){.pol-lb-prev,.pol-lb-next{width:44px;height:44px;font-size:1.1rem}}
+html.pol-lb-open{overflow:hidden}
+
+/* ---------- 7) WYŁĄCZNIK ---------- */
+@media (prefers-reduced-motion:reduce){
+  .nav{animation:none}
+  .pol-lb,.pol-lb img,.pol-lb figcaption{transition:none}
+  html.pol-fb-on body{transition:none}
+  html.pol-fb-on.pol-out body{opacity:1;translate:0 0}
+}
+/* === /POLISH 12.08.2026 === */
+
+/* === WARSTWA PREMIUM (retrofit 08.08.2026) === */
+/* ============================================================
+   OŚ PROCESU „PREMIUM" + OKNO NA NIERUCHOME TŁO + ODZNAKI + POWRÓT NA GÓRĘ
+   (08.08.2026 — wdrożenie decyzji K. z warsztatu ruchu II)
+
+   ⚠️ TEN PLIK JEST DOKLEJANY **PO** PLIKU RODZINY.
+   Powód: strukturę `.proces-line` stylują cztery rodziny (fachowcy, dom, klinika,
+   studio) jako poziomy rząd kart. Nowy układ musi je nadpisać, a base.css ładuje
+   się PRZED rodziną, więc tam by przegrał. Kolejność w multipage.py:
+       base.css → rodzina → TEN PLIK → motion.css → hero-fit.css
+
+   ZASADA BEZPIECZEŃSTWA (jak w całej warstwie ruchu):
+   stany „ukryte" nadaje WYŁĄCZNIE JavaScript przez klasę na <html>. Bez skryptu
+   albo przy jego błędzie strona wygląda jak przed tą zmianą — nigdy pusty ekran.
+   ============================================================ */
+
+/* ---------------- 1) OŚ PROCESU ---------------- */
+.proces-os .proc-grid{
+  display:grid;grid-template-columns:34% 1fr;gap:var(--space-8);align-items:start;
+}
+.proces-os .proc-side{position:sticky;top:calc(72px + var(--space-6))}
+.proces-os .proc-side .head{text-align:left;margin:0}
+.proces-os .proc-side .head h2{margin-bottom:var(--space-3)}
+.proces-os .proc-side .head p{margin:0}
+
+.proces-os .proc-count{display:flex;align-items:baseline;gap:var(--space-2);margin-top:var(--space-6)}
+.proces-os .pc-cur{
+  font-family:var(--font-display);font-size:2.6rem;line-height:1;color:var(--accent-d);
+  font-variant-numeric:tabular-nums;
+}
+.proces-os .pc-all{font-size:var(--text-base);color:var(--muted);font-variant-numeric:tabular-nums}
+.proces-os .proc-bar{
+  height:2px;background:var(--line);border-radius:2px;overflow:hidden;
+  max-width:14rem;margin-top:var(--space-3);
+}
+.proces-os .proc-bar > i{display:block;height:100%;width:0;background:var(--accent-d)}
+.proces-os .proc-now{
+  color:var(--muted);font-size:var(--text-sm);margin:var(--space-3) 0 0;min-height:2.4em;
+}
+
+/* ⚠️ TWARDY RESET OZDOBNIKÓW RODZINY (naprawa po teście 08.08.2026, demo hydraulika)
+   Rodziny nie tylko układają kroki w rząd — DORYSOWUJĄ do nich własną grafikę:
+   fachowcy.css ma poziomą kreskę (li::before), kropkę na osi (li::after), środkowanie
+   tekstu i `.pno` jako wielki numer nad tytułem. Po nałożeniu pionowej osi zostawało
+   z tego pobojowisko: numery w kółkach po lewej, a tytuły wyśrodkowane po prawej
+   z wiszącymi kropkami i liniami.
+   Nadpisujemy z `!important`, bo to jedyny sposób, żeby ta warstwa wygrała z CZTEREMA
+   rodzinami naraz (fachowcy, dom, klinika, studio), a każda dorysowuje coś innego.
+   Zasięg jest wąski — wyłącznie wnętrze `.proces-os`. */
+.proces-os .proces-line > li::before,
+.proces-os .proces-line > li::after{content:none !important;display:none !important}
+.proces-os .proces-line > li{padding:0 !important;position:relative}
+.proces-os .proces-line > li .pno,
+.proces-os .proces-line > li h3,
+.proces-os .proces-line > li p{text-align:left !important;margin-inline:0 !important;max-width:min(100%,var(--miara)) !important}
+.proces-os .proces-line > li .pno{
+  font-family:var(--font-body,inherit) !important;font-weight:500 !important;
+  font-size:var(--text-sm) !important;letter-spacing:0 !important;margin-bottom:0 !important;
+}
+
+/* lista: z poziomego rzędu rodziny na pionową oś */
+/* DROGA PRZEWIJANIA NA KROK (K. 09.08: „przy scrollu mega szybko przeskakuje").
+   NIE spowalniamy animacji - podświetlenie musi trzymać się palca, inaczej strona
+   sprawia wrażenie zacinającej się. Zamiast tego każdy krok dostaje własny kawałek
+   ekranu do przewinięcia: 4 kroki x ~34vh = ~1,4 ekranu zamiast jednego machnięcia.
+   Tylko duży ekran - na telefonie sticky-kolumna i tak jest wyłączona, a rozciąganie
+   sekcji zamieniłoby ją w tunel. */
+.proces-os .proces-line{
+  display:flex;flex-direction:column;gap:var(--space-5);
+  position:relative;margin:0;padding:0;list-style:none;counter-reset:none;
+  grid-template-columns:none;
+}
+.proces-os .proces-line:before{
+  content:"";position:absolute;left:1.19rem;top:1.2rem;bottom:1.2rem;width:1px;background:var(--line);
+}
+/* nakładka: ta sama linia, ale w kolorze akcentu, dociągnięta do aktywnego kroku.
+   Wysokość ustawia skrypt (--os-fill) - oś POKAZUJE postęp zamiast tylko podświetlać kropkę. */
+.proces-os .proces-line:after{
+  content:"";position:absolute;left:1.19rem;top:1.2rem;width:1px;background:var(--accent);
+  height:var(--os-fill, 0%);transition:height .7s cubic-bezier(.16,.84,.44,1);
+  opacity:.85;pointer-events:none;
+}
+.proces-os .proces-line > li{
+  display:grid;grid-template-columns:2.4rem 1fr;gap:var(--space-4);align-items:start;
+  background:none;border:0;padding:0;margin:0;box-shadow:none;
+}
+.proces-os .proces-line > li .pno{
+  grid-row:1 / span 3;width:2.4rem;height:2.4rem;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--paper);border:1px solid var(--line);color:var(--muted);
+  font-size:var(--text-sm);font-variant-numeric:tabular-nums;position:relative;z-index:1;
+  top:auto;left:auto;right:auto;bottom:auto;transform:none;
+}
+.proces-os .proces-line > li h3,
+.proces-os .proces-line > li p{grid-column:2;margin:0}
+.proces-os .proces-line > li h3{margin-bottom:var(--space-2)}
+.proces-os .proces-line > li p{color:var(--ink-soft);max-width:min(100%,var(--miara))}
+
+/* karta kroku — tło i ramka na kolumnie treści, nie na całym <li> */
+.proces-os .proces-line > li h3,
+.proces-os .proces-line > li p{padding-left:0}
+.proces-os .proces-line > li > h3{
+  padding-top:.15rem;
+}
+
+/* ---- stany sterowane skryptem (klasa .os-on na <html>) ---- */
+.os-on .proces-os .proces-line > li{
+  opacity:.3;
+  transition:opacity .8s cubic-bezier(.16,.84,.44,1);
+}
+/* krok przeczytany zostaje czytelny, ale ustępuje aktywnemu - hierarchia zamiast migotania */
+.os-on .proces-os .proces-line > li.os-seen{opacity:.62}
+.os-on .proces-os .proces-line > li.os-live{opacity:1}
+.os-on .proces-os .proces-line > li h3,
+.os-on .proces-os .proces-line > li p{
+  transform:translateX(var(--os-dx, 1.4rem));
+  transition:transform .65s cubic-bezier(.16,.84,.44,1);
+}
+.os-on .proces-os .proces-line > li.os-seen{opacity:1}
+.os-on .proces-os .proces-line > li.os-seen h3,
+.os-on .proces-os .proces-line > li.os-seen p{transform:translateX(0)}
+.os-on .proces-os .proces-line > li.os-live .pno{
+  background:var(--accent-d);border-color:var(--accent-d);color:var(--paper);
+  transition:background .45s ease,color .45s ease,border-color .45s ease;
+}
+.os-on .proces-os .proces-line > li.os-done .pno{border-color:var(--accent-d);color:var(--accent-d)}
+.os-on .proces-os .proc-bar > i{transition:width .45s cubic-bezier(.16,.84,.44,1)}
+
+@media (min-width:901px){
+  /* Droga przewijania na krok - ale treść ZAWSZE razem z numerem (błąd 09.08: kropka
+     przyklejona do środka ekranu odrywała się od swojego nagłówka = chaos).
+     Zapas robimy padding-bottom pod treścią, nie rozpychaniem wiersza. */
+  .proces-os .proces-line{gap:0}
+  .proces-os .proces-line > li{padding-bottom:clamp(150px, 26vh, 280px) !important}
+  .proces-os .proces-line > li:last-child{padding-bottom:0 !important}
+}
+@media (max-width:900px){
+  .proces-os .proc-grid{grid-template-columns:1fr;gap:var(--space-6)}
+  .proces-os .proc-side{position:static}          /* przyklejony tytuł zjadałby górę ekranu */
+  .proces-os .proc-count{margin-top:var(--space-4)}
+  .proces-os .proc-now{display:none}
+  .os-on .proces-os .proces-line > li h3,
+  .os-on .proces-os .proces-line > li p{transform:none}   /* wjazd z boków tylko na dużym ekranie */
+}
+@media (prefers-reduced-motion:reduce){
+  .os-on .proces-os .proces-line > li{opacity:1}
+  .os-on .proces-os .proces-line > li h3,
+  .os-on .proces-os .proces-line > li p{transform:none}
+}
+
+/* ---------------- 2) OKNO NA NIERUCHOME TŁO ----------------
+   `clip-path` na sekcji tworzy kontekst przycinający, więc dziecko `position:fixed`
+   przykleja się do OKNA PRZEGLĄDARKI, ale rysuje się wyłącznie w obrębie sekcji.
+   ⛔ NIE `background-attachment:fixed` (tak robi irismeble.pl) — to nie działa na iOS,
+   a dema oglądane są głównie na telefonie. */
+.stopklatka{
+  position:relative;height:min(78vh,620px);overflow:hidden;
+  clip-path:inset(0);            /* to jest cały mechanizm — nie usuwać */
+  background:var(--ink);
+  margin:var(--space-10) 0;
+}
+.stopklatka .stk-bg{
+  position:fixed;inset:0;background-size:cover;background-position:center;
+  will-change:transform;
+}
+.stopklatka .stk-cap{
+  position:absolute;left:0;right:0;bottom:0;margin:0;
+  padding:var(--space-6) var(--space-6) var(--space-5);
+  color:#fff;font-family:var(--font-display);font-size:var(--text-lg);
+  background:linear-gradient(0deg,rgba(0,0,0,.55),transparent);
+}
+/* Telefon: pełna wysokość okna wyglądałaby jak przypadkowa pusta przerwa między sekcjami. */
+@media (max-width:700px){ .stopklatka{height:52vh;margin:var(--space-8) 0} }
+/* Bezpiecznik: gdy ktoś kiedyś doda transform na przodku sekcji, przyszpilenie się gubi
+   i zdjęcie „ucieka". Wtedy lepiej mieć zwykłe, nieruchome tło niż rozjechany kadr. */
+@supports not (clip-path: inset(0)){
+  .stopklatka .stk-bg{position:absolute}
+}
+
+/* ---------------- 3) ODZNAKI / WYRÓŻNIENIA ---------------- */
+.odznaki{padding:var(--space-9) 0}
+.odznaki .odz-row{
+  list-style:none;margin:0;padding:0;
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+  gap:var(--space-8) var(--space-10);
+}
+.odznaki .odz img{
+  display:block;height:5.2rem;width:auto;max-width:11rem;object-fit:contain;
+}
+/* ⛔ Bez wyblakłego szarego filtra, jaki ma irismeble.pl — odznaka to najmocniejszy
+   dowód, jaki firma ma; przygaszona marnuje się (decyzja K. 08.08.2026). */
+@media (max-width:700px){
+  .odznaki{padding:var(--space-7) 0}
+  .odznaki .odz-row{gap:var(--space-6)}
+  .odznaki .odz img{height:4rem}
+}
+
+/* ---------------- 4) IKONY SPOŁECZNOŚCIOWE W STOPCE ---------------- */
+.foot-soc{display:flex;gap:var(--space-3);margin-top:var(--space-4)}
+.foot-soc .soc{
+  width:2.25rem;height:2.25rem;border-radius:var(--r-sm);
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid rgba(255,255,255,.22);color:inherit;
+  transition:border-color .2s ease,transform .2s ease,background .2s ease;
+}
+.foot-soc .soc svg{width:1.05rem;height:1.05rem;display:block}
+.foot-soc .soc:hover{border-color:var(--accent);background:rgba(255,255,255,.06);transform:translateY(-1px)}
+.foot-soc .soc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------------- 5) POWRÓT NA GÓRĘ ---------------- */
+.to-top{
+  position:fixed;right:var(--space-5);bottom:var(--space-5);z-index:40;
+  width:2.75rem;height:2.75rem;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+  background:var(--paper);color:var(--ink);border:1px solid var(--line);
+  box-shadow:0 4px 16px rgba(0,0,0,.14);cursor:pointer;
+  opacity:0;visibility:hidden;transform:translateY(6px);
+  transition:opacity .25s ease,transform .25s ease,visibility .25s;
+}
+.to-top.show{opacity:1;visibility:visible;transform:translateY(0)}
+.to-top svg{width:1.1rem;height:1.1rem}
+.to-top:hover{border-color:var(--accent)}
+.to-top:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Nie wolno zasłonić przyklejonego paska „Zadzwoń" na telefonie — tam siada wyżej. */
+@media (max-width:680px){
+  body:has(.sticky-call) .to-top,
+  body:has(.sticky-reserve) .to-top{bottom:calc(var(--space-5) + 4.5rem)}
+}
+
+/* ---------------- 6) NAZWA FIRMY NA PIERWSZYM EKRANIE ----------------
+   Wariant „nazwa ustępuje miejsca" (wybór K. z warsztatu ruchu II):
+   nazwa wchodzi duża, po chwili siada do swojego rozmiaru i robi miejsce
+   nagłówkowi sprzedażowemu. Marka i sprzedaż mieszczą się w jednym ekranie.
+
+   Rozmiar zależy od DŁUGOŚCI nazwy (klasę wylicza multipage.py: bm-l / bm-m / bm-s),
+   a nazwy dłuższe niż 30 znaków nie dostają tej sekcji wcale — patrz brandmark().
+   Skalowanie dotyczy TEKSTU, nie zdjęcia: zakaz ruchu geometrycznego na .hero-cine>img
+   (shimmer na teksturach) pozostaje nienaruszony. */
+.hero-cine .brandmark{
+  display:block;line-height:.95;margin:0 0 var(--space-4);
+  font-family:var(--font-display);font-weight:600;color:#fff;
+  text-shadow:0 2px 30px rgba(0,0,0,.38);
+  letter-spacing:.14em;
+}
+.hero-cine .brandmark .bm-line{display:block;overflow:hidden}
+.hero-cine .brandmark .bm-line > span{display:block}
+.hero-cine .brandmark.bm-l{font-size:clamp(2.4rem,7.4vw,5.2rem)}
+.hero-cine .brandmark.bm-m{font-size:clamp(1.9rem,5.2vw,3.6rem);letter-spacing:.1em}
+.hero-cine .brandmark.bm-s{font-size:clamp(1.5rem,3.6vw,2.4rem);letter-spacing:.07em}
+/* Bardzo wąskie ekrany: nazwa musi się złamać, a nie wyjechać poza kadr. */
+.hero-cine .brandmark{overflow-wrap:anywhere}
+
+/* stany startowe nadaje TYLKO skrypt (klasa .bm-on na <html>) */
+.bm-on .hero-cine .brandmark{opacity:0;transform:scale(1.42);transform-origin:left center}
+.bm-on .hero-cine .hero-copy .eyebrow,
+.bm-on .hero-cine .hero-copy h1,
+.bm-on .hero-cine .hero-copy .lead,
+.bm-on .hero-cine .hero-copy .hero-actions{opacity:0}
+.bm-on .hero-cine .brandmark.bm-in{
+  opacity:1;transform:scale(1);
+  transition:opacity .6s ease, transform 1s cubic-bezier(.16,.84,.44,1) .38s;
+}
+.bm-on .hero-cine .brandmark.bm-in ~ .eyebrow{opacity:1;transition:opacity .6s ease .9s}
+.bm-on .hero-cine .brandmark.bm-in ~ h1{opacity:1;transition:opacity .6s ease 1s}
+.bm-on .hero-cine .brandmark.bm-in ~ .lead{opacity:1;transition:opacity .6s ease 1.1s}
+.bm-on .hero-cine .brandmark.bm-in ~ .hero-actions{opacity:1;transition:opacity .6s ease 1.2s}
+@media (prefers-reduced-motion:reduce){
+  .bm-on .hero-cine .brandmark{opacity:1;transform:none}
+  .bm-on .hero-cine .hero-copy > *{opacity:1 !important;transition:none !important}
+}
+
+/* ============================================================
+   1b) MECHANIKA PREMIUM DLA RODZIN Z WŁASNYM KSZTAŁTEM PROCESU
+   (10.08.2026 — zgłoszenie K. po demie Patris: „czemu nie ma tego procesu,
+   który ustaliliśmy w weekend?")
+
+   Rodziny AUTO (poziomy rząd kart) i DOM (wiersze katalogowe) mają kształty
+   dobrane celowo, żeby dema nie wyglądały jak rodzeństwo — więc nie przerabiamy
+   ich na pionową oś. Dostają za to to samo, co robi oś premium: licznik kroków,
+   pasek postępu, nazwę aktywnego etapu i zapalanie kroków przy przewijaniu.
+   Sterowanie: `.os-mech` + `[data-os-steps]` w proces-os.js (tryb poziomy).
+
+   Bezpiecznik bez zmian: stan „przygaszony" wchodzi WYŁĄCZNIE z klasą `.os-on`,
+   którą nadaje JS. Bez skryptu sekcja wygląda dokładnie jak przed tą zmianą.
+   ============================================================ */
+.os-mech .proc-count{display:flex;align-items:baseline;gap:var(--space-2);margin-top:var(--space-5)}
+.os-mech .pc-cur{
+  font-family:var(--font-display);font-size:2.1rem;line-height:1;color:var(--accent-d);
+  font-variant-numeric:tabular-nums;
+}
+.os-mech .pc-all{font-size:var(--text-base);color:var(--muted);font-variant-numeric:tabular-nums}
+.os-mech .proc-bar{
+  height:2px;background:var(--line);border-radius:2px;overflow:hidden;
+  max-width:14rem;margin-top:var(--space-3);
+}
+.os-mech .proc-bar > i{display:block;height:100%;width:0;background:var(--accent-d);
+  transition:width .5s cubic-bezier(.16,.84,.44,1)}
+.os-mech .proc-now{color:var(--muted);font-size:var(--text-sm);margin:var(--space-3) 0 0;min-height:1.6em}
+
+/* kroki: wjazd i przygaszenie tych jeszcze nieobejrzanych — bez ruszania siatki */
+.os-on .os-mech [data-os-steps] > li{
+  opacity:.45;transform:translateY(1rem);
+  transition:opacity .55s cubic-bezier(.16,.84,.44,1),transform .55s cubic-bezier(.16,.84,.44,1);
+  transition-delay:calc(var(--os-i,0) * 90ms);   /* kaskada: karty zapalają się po kolei */
+}
+.os-on .os-mech [data-os-steps] > li.os-seen{opacity:1;transform:none}
+.os-on .os-mech [data-os-steps] > li.os-live .ap-no,
+.os-on .os-mech [data-os-steps] > li.os-live .dp-no{color:var(--accent-d)}
+
+/* SYGNATURA: kreska nad krokiem dopełnia się akcentem, gdy krok wchodzi na ekran.
+   Obie rodziny mają ją już w swoim arkuszu (auto 42%, dom 38%) — tu tylko ożywa. */
+.os-on .os-mech [data-os-steps] > li::before{
+  transition:width .6s cubic-bezier(.16,.84,.44,1);
+}
+.os-on .os-mech [data-os-steps] > li.os-seen::before{width:100%}
+
+@media (prefers-reduced-motion: reduce){
+  .os-on .os-mech [data-os-steps] > li{opacity:1;transform:none;transition:none}
+  .os-on .os-mech [data-os-steps] > li::before{transition:none}
+  .os-mech .proc-bar > i{transition:none}
+}
+
+/* ---------- ZNAK FIRMOWY W HERO (08.08.2026) ----------
+   Musi być TUTAJ, a nie tylko w proces-os.css: ten plik doklejamy na samym końcu i tylko on
+   wiąże rozmiary z wysokością okna. Pomiar na demie ADIVER: hero z nazwą urosło do 1087 px
+   przy oknie 893 px i przycisk wypadł pod krawędź — czyli wróciła wpadka, dla której hero-fit
+   w ogóle powstał. `min(..., Xsvh)` sprawia, że na niskim ekranie nazwa maleje razem z resztą.
+   Nazwa NIE ŁAMIE SIĘ na dwie linie (to zjadało kolejne 80 px) — przy dłuższych po prostu maleje. */
+.hero-cine .brandmark{
+  margin-bottom:min(var(--space-5),2.6svh);
+  white-space:nowrap;
+}
+/* Rozmiar CELOWO mniejszy od nagłówka. Pierwsza wersja dała 62 px przy nagłówku 60 px —
+   dwa napisy tej samej wagi jeden nad drugim, więc oko nie wiedziało, co czytać najpierw.
+   Znak firmowy ma się przedstawiać, a sprzedawać ma nagłówek pod nim. */
+.hero-cine .brandmark.bm-l{font-size:min(clamp(1.7rem,1.1rem + 2.2vw,2.7rem),5svh)}
+.hero-cine .brandmark.bm-m{font-size:min(clamp(1.45rem,1rem + 1.7vw,2.2rem),4.2svh)}
+.hero-cine .brandmark.bm-s{font-size:min(clamp(1.2rem,.9rem + 1.2vw,1.7rem),3.4svh)}
+/* Wąski telefon: nazwa ma prawo się złamać, ale wtedy jest już mała. */
+@media (max-width:560px){
+  .hero-cine .brandmark{white-space:normal;overflow-wrap:anywhere}
+}
+
+
+
+/* ---------- PASEK KONTAKTU NA TELEFONIE (wzorzec rodziny „fachowcy") ----------
+   Najważniejszy konwerter na telefonie: numer zawsze pod ręką. Wjeżdża z dołu
+   raz, po wejściu na stronę - żeby nie zasłonił pierwszego ekranu bez zapowiedzi. */
+.sticky-call{display:none}
+@media(max-width:820px){
+  .sticky-call{display:grid;grid-template-columns:1fr 1fr;gap:1px;
+    position:fixed;left:0;right:0;bottom:0;z-index:90;
+    background:var(--line);box-shadow:0 -6px 20px -10px rgba(0,0,0,.4)}
+  .sticky-call a{padding:15px 8px;text-align:center;font-weight:700;
+    font-size:.95rem;letter-spacing:.01em;transition:filter .3s ease}
+  .sticky-call a:active{filter:brightness(.92)}
+  .sc-call{background:var(--accent);color:#fff}
+  .sc-quote{background:var(--paper);color:var(--ink)}
+  body{padding-bottom:56px}
+  @media (prefers-reduced-motion:no-preference){
+    @keyframes polBarIn{from{translate:0 100%}to{translate:0 0}}
+    .sticky-call{animation:polBarIn .8s cubic-bezier(.16,.84,.44,1) .9s both}
+  }
+}
+/* === /PASEK KONTAKTU === */
+
+
+/* ---------- DOMKNIĘCIE POLISH 12.08.2026 (uwagi zmierzone bramką wyglądu) ----------
+
+   1) HOVER NA KAFLACH GALERII NIE DZIAŁAŁ.
+   Reguła kurtyny `.mt-on .mt-ph > img` ma własne `transition` (clip-path + scale) i - jako
+   bardziej szczegółowa - kasowała `transition` hoveru z `.tile img`. Zmierzone bramką:
+   7 kafli na realizacjach „bez reakcji na najechanie" (powiększenie skakało natychmiast).
+   To ta sama pułapka, o której mówi reguła w CLAUDE.md: warstwa ruchu MUSI wymienić
+   transform i filter w swoim transition. Wypisujemy więc wszystkie cztery właściwości. */
+.mt-on .mt-ph > img,
+.mt-on .mt-ph > picture > img{
+  transition:clip-path 1.15s var(--mt-ease) var(--mt-d,0s),
+             scale 1.6s var(--mt-ease) var(--mt-d,0s),
+             transform var(--img-dur) var(--img-ease),
+             filter var(--img-dur) var(--img-ease);
+}
+
+/* 2) PRZYCISK W MENU - tekst dotykał krawędzi.
+   `.nav-links a{padding-block:4px}` wygrywało z `.btn{padding:...}`, więc „Zapytaj o wycenę"
+   siedziało wciśnięte w ramkę. */
+.nav .nav-links a.btn{padding-block:11px;padding-inline:var(--space-5)}
+
+/* 3) NAPIS NA ZDJĘCIU - zmierzony kontrast 2.78:1 przy wymaganych 4.5.
+   Nagłówki podstron leżą na jasnych fragmentach zdjęcia. Mocniejszy gradient od dołu
+   plus cień pod literami; zdjęcie zostaje czytelne, litery przestają się gubić. */
+.pagehead::after{background:linear-gradient(180deg,rgba(20,12,13,.30) 0%,rgba(20,12,13,.58) 55%,rgba(20,12,13,.78) 100%)}
+.pagehead h1,.pagehead .eyebrow,.pagehead p{text-shadow:0 2px 18px rgba(12,7,8,.55),0 1px 3px rgba(12,7,8,.5)}
+.hero-cine h1,.hero-cine .lead,.hero-cine .eyebrow{text-shadow:0 2px 20px rgba(12,7,8,.45)}
+.tile .cap,.gateway .g-ttl{text-shadow:0 1px 10px rgba(12,7,8,.5)}
+
+/* 4) TEKST POBOCZNY - zmierzone 4.05:1 na jasnym tle (progiem jest 4.5).
+   Przyciemniamy jeden odcień; zostaje wyraźnie „poboczny", ale daje się czytać. */
+:root{--muted:#6F5C5D}
+/* === /DOMKNIĘCIE POLISH === */
+
+
+/* ---------- OCENA I LINK DO OPINII (dokładka 12.08.2026) ----------
+   Zmierzone wzrokiem na zrzucie: ocena i link stały przy lewej krawędzi pod
+   wyśrodkowanym nagłówkiem „Co mówią klienci", a link był goły (styl pigułki
+   siedzi w base.css silnika, do tego dema nie doszedł). Wyrównujemy do środka
+   i przywracamy kafelek marki - wzorzec z recipes/multipage/base.css. */
+.opinie .op-meta{text-align:center;max-width:none;margin-inline:auto;color:var(--ink-soft)}
+.opinie .op-meta:first-of-type{margin-top:calc(-1 * var(--space-4))}
+.opinie .op-meta+.op-meta{margin-top:var(--space-4)}
+.opinie .opinie-grid{margin-top:var(--space-7)}
+.op-google{display:inline-flex;align-items:center;gap:.6em;
+  padding:.62em 1.15em;border:1px solid var(--line);border-radius:999px;
+  background:#fff;color:var(--ink);font-size:var(--text-sm);font-weight:600;
+  transition:border-color .35s var(--mt-ease),box-shadow .35s ease,transform .35s var(--mt-ease)}
+.op-google .op-g-ico{flex:none}
+.op-google .arr{transition:transform .35s var(--mt-ease)}
+.op-google:hover{border-color:var(--accent);box-shadow:var(--sh-sm);transform:translateY(-2px)}
+.op-google:hover .arr{transform:translateX(4px)}
+/* === /OCENA I LINK DO OPINII === */
+
+
+/* ============================================================
+   WARSTWA „PŁYNNOŚĆ" — 12.08.2026 (prośba Szymona: „animowane przejścia,
+   niech wszystko wygląda płynnie i wciąga oko")
+   ------------------------------------------------------------
+   Doklejona na SAM KONIEC pliku, wyłącznie DODAJE. Nic wyżej nie jest
+   usuwane ani przepisywane, więc cofnięcie = usunięcie tego bloku.
+
+   ZASADY (te same, co w motion.css — nie łamać):
+   • ⛔ ZERO ruchu geometrycznego na `.hero-cine>img` — ruszamy TYLKO tekstem
+     nagłówka i warstwami nad zdjęciem (shimmer na teksturach, 3x Szymon).
+   • Stan „ukryty" nadaje wyłącznie skrypt (klasy `.bm-on` / `.sx-*`) — bez JS
+     strona wygląda dokładnie jak przed tą warstwą. Nigdy pusty ekran.
+   • Ruch geometryczny idzie osobnymi właściwościami (`translate:`) tam, gdzie
+     `transform:` jest już zajęty przez hover.
+   • prefers-reduced-motion zdejmuje wszystko (wyłącznik na końcu bloku).
+   ============================================================ */
+
+/* ---------- 1) HERO: treść nie „pojawia się", tylko wchodzi ----------
+   Sekwencja opacity (nazwa → nadtytuł → H1 → lead → CTA) już istniała.
+   Dokładamy jej RUCH: te same opóźnienia, do tego dojazd z dołu. H1 zostaje
+   bez przesunięcia, bo jego linie wjeżdżają już zza maski (motion.css, sekcja 2)
+   — dwa ruchy naraz na tym samym elemencie czytają się jak drganie. */
+@media (prefers-reduced-motion:no-preference){
+  .bm-on .hero-cine .hero-copy .eyebrow,
+  .bm-on .hero-cine .hero-copy .lead,
+  .bm-on .hero-cine .hero-copy .hero-actions,
+  .bm-on .hero-cine .hero-copy > div:last-child{translate:0 18px}
+  .bm-on .hero-cine .hero-copy > div:last-child{opacity:0}
+  .bm-on .hero-cine .brandmark.bm-in ~ .eyebrow{translate:0 0;transition:opacity .6s ease .9s,translate 1s var(--mt-ease) .9s}
+  .bm-on .hero-cine .brandmark.bm-in ~ .lead{translate:0 0;transition:opacity .6s ease 1.1s,translate 1s var(--mt-ease) 1.1s}
+  .bm-on .hero-cine .brandmark.bm-in ~ .hero-actions{translate:0 0;transition:opacity .6s ease 1.2s,translate 1s var(--mt-ease) 1.2s}
+  .bm-on .hero-cine .brandmark.bm-in ~ div:last-child{opacity:1;translate:0 0;transition:opacity .7s ease 1.35s,translate 1s var(--mt-ease) 1.35s}
+}
+
+/* ---------- 2) HERO: kinowe WYJŚCIE przy przewijaniu ----------
+   JS podaje `--sx-p` (0 = góra strony, 1 = nagłówek zszedł z ekranu). Treść
+   odjeżdża w górę i gaśnie, czyli przewijanie samo w sobie staje się animacją.
+   Liczone jednym rAF-em, bez własnej pętli — zero janku.
+   Bez JS `--sx-p` nie istnieje → wartość domyślna 0 → nagłówek stoi jak dotąd. */
+@media (prefers-reduced-motion:no-preference) and (min-width:760px){
+  .hero-cine .hero-copy{
+    translate:0 calc(var(--sx-p,0) * -70px);
+    opacity:calc(1 - var(--sx-p,0) * .92);
+  }
+  .pagehead .wrap{
+    translate:0 calc(var(--sx-p,0) * -46px);
+    opacity:calc(1 - var(--sx-p,0) * .85);
+  }
+}
+
+/* ---------- 3) ZACHĘTA DO PRZEWINIĘCIA ----------
+   Pigułka z podpisem + pionowa kreska ze światłem sunącym w dół. Znika, gdy
+   tylko przewiniesz (steruje `--sx-p`), więc nie zostaje w kadrze na siłę.
+   Wstawia ją JS i tylko na dużym ekranie z myszą.
+   ⚠️ `position:fixed`, NIE `absolute`: nagłówek bywa WYŻSZY niż okno (tu ~950 px
+   przy oknie 900), więc kotwiczona do jego dołu zachęta wypadałaby pod ekranem —
+   czyli dokładnie tam, gdzie nikt jej nie zobaczy. Przy oknie jest zawsze widoczna,
+   a i tak gaśnie po pierwszym ruchu kółkiem myszy.
+   Ciemna pigułka, bo dolna krawędź kadru bywa jasna (tu marmurowa podłoga) —
+   biały tekst bez tła potrafił się na niej zgubić. */
+.sx-cue{
+  position:fixed;left:50%;bottom:clamp(14px,2.4vh,30px);z-index:40;
+  translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:9px;
+  pointer-events:none;color:#fff;
+  opacity:calc(1 - var(--sx-p,0) * 4);
+}
+.sx-cue-txt{
+  font-size:.62rem;letter-spacing:.26em;text-transform:uppercase;font-weight:700;
+  /* padding w PIKSELACH, nie w em: pigułka ma ramkę ze wszystkich stron, a bramka
+     wyglądu wymaga wtedy min. 7 px u góry i 12 px z boku. Przy .62rem wersja „.5em"
+     dawała 5/10 px i leciało ostrzeżenie „tekst przyklejony do linii". */
+  padding:8px 15px;border-radius:999px;
+  background:rgba(18,14,14,.42);border:1px solid rgba(255,255,255,.22);
+  text-shadow:0 1px 10px rgba(12,7,8,.55);
+}
+@supports (backdrop-filter:blur(4px)){.sx-cue-txt{backdrop-filter:blur(7px) saturate(120%)}}
+.sx-cue-line{display:block;position:relative;width:1px;height:44px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,.05))}
+.sx-cue-line > i{position:absolute;left:0;top:0;width:1px;height:16px;background:#fff;
+  animation:sxCue 2.4s cubic-bezier(.55,.06,.68,.19) infinite}
+@keyframes sxCue{
+  0%{translate:0 -18px;opacity:0}
+  35%{opacity:1}
+  100%{translate:0 44px;opacity:0}
+}
+
+/* ---------- 4) KAFLE ZE ZDJĘCIEM: pochylenie za kursorem (3D) ----------
+   Kafel reaguje na rękę zanim cokolwiek klikniesz - to detal, który najmocniej
+   odróżnia stronę „zrobioną" od „złożonej z szablonu". Kąt jest mały (max 3,2°),
+   dojazd długi, więc ruch jest miękki, nigdy nerwowy.
+   ⚠️ Hover na .gateway ma własny `transform:translateY(...)` — dlatego warianty
+   :hover powtarzamy z pochyleniem, inaczej pochylenie zniknęłoby dokładnie wtedy,
+   gdy jest potrzebne (specyficzność .gateway.sx-tilt:hover > .gateway:hover). */
+@media (hover:hover) and (pointer:fine) and (min-width:900px) and (prefers-reduced-motion:no-preference){
+  .gallery,.gateways,.split{perspective:1500px}
+  /* ⚠️ PODWÓJNA KLASA (.sx-tilt.sx-tilt) NIE JEST OZDOBĄ — bez niej pochylenie NIE DZIAŁA.
+     Kafle mają klasy `reveal in`, a base.css ma `.reveal.in{transform:none}` (0,2,0), czyli
+     BIJE pojedynczą `.sx-tilt` (0,1,0). Zmierzone: kąty liczyły się poprawnie, a kafel stał
+     w miejscu (transform: none). Powtórzenie klasy podnosi specyficzność do 0,2,0 i — jako
+     reguła późniejsza w pliku — wygrywa, nie ruszając niczego wyżej. */
+  .sx-tilt.sx-tilt{
+    transform:rotateX(var(--sx-rx,0deg)) rotateY(var(--sx-ry,0deg));
+    transition:transform .55s var(--mt-ease),box-shadow .45s ease,border-color .45s ease;
+  }
+  .gateway.sx-tilt:hover{transform:translateY(-5px) rotateX(var(--sx-rx,0deg)) rotateY(var(--sx-ry,0deg))}
+}
+
+/* ---------- 5) „POWIĘKSZ" PRZY KURSORZE (galeria) ----------
+   Galeria ma lightbox od 12.08, ale nic tego nie zdradzało — klient nie klikał,
+   bo nie wiedział, że może. Kółko jadące za myszą mówi to bez słowa.
+   Rodzimy kursor chowamy TYLKO wtedy, gdy kółko naprawdę istnieje (klasa na <html>). */
+.sx-mag{
+  position:fixed;top:0;left:0;z-index:120;pointer-events:none;
+  width:82px;height:82px;margin:-41px 0 0 -41px;border-radius:50%;
+  display:grid;place-items:center;text-align:center;
+  background:color-mix(in srgb,var(--accent) 95%,transparent);
+  color:#fff;font-size:.62rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  /* odstęp między literami dokłada światło PO ostatniej literze — bez tej korekty
+     napis stoi wizualnie o pół znaku za daleko w lewo (widoczne na zrzucie) */
+  text-indent:.16em;
+  box-shadow:0 18px 40px -18px rgba(0,0,0,.6);
+  opacity:0;scale:.4;
+  transition:opacity .26s ease,scale .38s var(--mt-ease);
+}
+.sx-mag.is-on{opacity:1;scale:1}
+@media (hover:hover) and (pointer:fine) and (min-width:900px){
+  .sx-mag-on .gallery .tile,.sx-mag-on .gallery-masonry .m-tile{cursor:none}
+}
+
+/* ---------- 6) PASEK HASEŁ: akcent dorysowuje się przy wejściu ----------
+   Pięć kresek zapala się po kolei, zamiast stać gotowych od początku. */
+.strip .item{position:relative;overflow:visible}
+.strip .item::before{
+  content:"";position:absolute;left:-2px;top:0;width:2px;height:100%;
+  background:var(--accent);transform-origin:top center;
+  scale:1 0;transition:scale 1s var(--mt-ease) calc(var(--i,0) * 110ms);
+}
+.strip .item.in::before{scale:1 1}
+.mt-on .strip .item{border-left-color:transparent}
+
+/* ---------- 7) BRAMY: strzałka dojeżdża na hover ---------- */
+@media (hover:hover) and (min-width:760px){
+  .gateway .g-ttl::after{
+    content:"→";position:absolute;right:var(--space-5);bottom:calc(var(--space-6) + 3px);
+    font-family:var(--font-body);font-size:1.1rem;line-height:1;
+    opacity:0;translate:-10px 0;transition:opacity .5s ease,translate .6s var(--mt-ease);
+  }
+  .gateway:hover .g-ttl::after{opacity:.95;translate:0 0}
+}
+
+/* ---------- 8) LINKI W STOPCE I NAWIGACJI: kreska rośnie z lewej ---------- */
+.foot-col a{position:relative;width:fit-content}
+.foot-col a::after{
+  content:"";position:absolute;left:0;bottom:-2px;height:1px;width:0;
+  background:var(--accent);transition:width .45s var(--mt-ease);
+}
+.foot-col a:hover::after{width:100%}
+
+/* ---------- 9) OPINIE: karta unosi się z akcentem u góry ---------- */
+.op-card{position:relative;overflow:hidden}
+.op-card::after{
+  content:"";position:absolute;left:0;top:0;height:2px;width:0;
+  background:var(--accent);transition:width .8s var(--mt-ease);
+}
+@media (hover:hover){.op-card:hover::after{width:100%}}
+
+/* ---------- 10) WYŁĄCZNIK ---------- */
+@media (prefers-reduced-motion:reduce){
+  .sx-cue{display:none}
+  .sx-mag{display:none}
+  .hero-cine .hero-copy,.pagehead .wrap{translate:0 0;opacity:1}
+  .strip .item::before{scale:1 1;transition:none}
+  .mt-on .strip .item{border-left-color:var(--accent)}
+  .sx-tilt.sx-tilt{transform:none}
+}
+/* === /WARSTWA „PŁYNNOŚĆ" === */

@@ -476,3 +476,478 @@
 
 /* === licznik otwarć demo (buy-signal) + geo === */
 (function(){try{if(String(location.protocol).indexOf('http')!==0)return;try{if(/[?&#]team=1/.test(location.search+location.hash)){localStorage.setItem('nb_team','1');}}catch(e){}try{if(localStorage.getItem('nb_team')==='1')return;}catch(e){}if((document.referrer||'').indexOf('crm-newbeginning')>-1)return;if(sessionStorage.getItem('_dv'))return;sessionStorage.setItem('_dv','1');var seg=(location.pathname.split('/').filter(Boolean)[0])||'';var base=location.origin+(seg?('/'+seg):'');var ua='';try{ua=(navigator.userAgent||'').slice(0,300);}catch(e){}var EP='https://zngfubfinbojfgaxdrbf.supabase.co/rest/v1/demo_views';var KEY='sb_publishable_MWwoyGlSCWnJ4awtOPF0ow_ZVS0Y8qK';function send(g){try{fetch(EP,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY,'Prefer':'return=minimal'},body:JSON.stringify({demo_url:base,page:location.pathname,referrer:(document.referrer||null),user_agent:(ua||null),ip:(g&&g.ip)||null,country:(g&&g.cc)||null,city:(g&&g.city)||null})}).catch(function(){});}catch(e){}}var done=false;function once(g){if(done)return;done=true;send(g);}try{var t=setTimeout(function(){once(null);},1500);fetch('https://ipwho.is/?fields=ip,success,country_code,city',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){clearTimeout(t);once(d&&d.success!==false?{ip:d.ip,cc:d.country_code,city:d.city}:null);}).catch(function(){clearTimeout(t);once(null);});}catch(e){once(null);}}catch(e){}})();
+
+
+/* ============================================================
+   POLISH 12.08.2026 — lightbox galerii, poświata pod kursorem,
+   przejścia między podstronami dla przeglądarek bez View Transitions.
+   Wszystko w try/catch i wszystko OPCJONALNE: gdy ten blok padnie,
+   strona zachowuje się dokładnie jak przed nim (linki nawigują,
+   zdjęcia zostają zdjęciami).
+   ============================================================ */
+(function () {
+  'use strict';
+  var docEl = document.documentElement;
+  function all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- 1) LIGHTBOX ----------
+     Kafle galerii stają się klikalne: zdjęcie wchodzi na pełny ekran,
+     tło przygasa. ESC / klik w tło zamyka, strzałki przełączają. */
+  function prepLightbox() {
+    var hosts = all('.gallery .tile, .gallery-masonry .m-tile').filter(function (h) {
+      // kafel, który JEST linkiem, zostawiamy w spokoju - ma swoje zadanie
+      return h.querySelector('img') && !h.closest('a');
+    });
+    if (hosts.length < 2) return;
+
+    var lb = document.createElement('div');
+    lb.className = 'pol-lb';
+    lb.setAttribute('role', 'dialog');
+    lb.setAttribute('aria-modal', 'true');
+    lb.setAttribute('aria-label', 'Powiększone zdjęcie realizacji');
+    lb.innerHTML =
+      '<button class="pol-lb-btn pol-lb-close" type="button" aria-label="Zamknij">&#10005;</button>' +
+      '<button class="pol-lb-btn pol-lb-prev" type="button" aria-label="Poprzednie zdjęcie">&#8592;</button>' +
+      '<button class="pol-lb-btn pol-lb-next" type="button" aria-label="Następne zdjęcie">&#8594;</button>' +
+      '<figure class="pol-lb-fig"><img alt=""><figcaption></figcaption></figure>';
+    document.body.appendChild(lb);
+
+    var obraz = lb.querySelector('img');
+    var podpis = lb.querySelector('figcaption');
+    var idx = -1, wrocDo = null;
+
+    var pozycje = hosts.map(function (h) {
+      var im = h.querySelector('img');
+      var cap = h.querySelector('.cap');
+      return {
+        src: im.getAttribute('src'),
+        opis: (cap ? cap.textContent : '') || im.getAttribute('alt') || ''
+      };
+    });
+
+    function pokaz(i) {
+      if (i < 0) i = pozycje.length - 1;
+      if (i >= pozycje.length) i = 0;
+      idx = i;
+      var p = pozycje[i];
+      obraz.setAttribute('src', p.src);
+      obraz.setAttribute('alt', p.opis || 'Realizacja Medom');
+      podpis.innerHTML = (p.opis ? '<b>' + p.opis.replace(/</g, '&lt;') + '</b>' : '') +
+        '<span>' + (i + 1) + ' / ' + pozycje.length + '</span>';
+    }
+    function otworz(i, zrodlo) {
+      wrocDo = zrodlo || null;
+      pokaz(i);
+      docEl.classList.add('pol-lb-open');
+      lb.classList.add('is-open');
+      var c = lb.querySelector('.pol-lb-close');
+      if (c) setTimeout(function () { try { c.focus(); } catch (e) {} }, 60);
+    }
+    function zamknij() {
+      lb.classList.remove('is-open');
+      docEl.classList.remove('pol-lb-open');
+      if (wrocDo) { try { wrocDo.focus(); } catch (e) {} }
+    }
+
+    hosts.forEach(function (h, i) {
+      h.classList.add('pol-zoom');
+      if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '0');
+      if (!h.hasAttribute('role')) h.setAttribute('role', 'button');
+      if (!h.hasAttribute('aria-label')) {
+        var im = h.querySelector('img');
+        h.setAttribute('aria-label', 'Powiększ zdjęcie' + (im && im.alt ? ': ' + im.alt : ''));
+      }
+      h.addEventListener('click', function () { otworz(i, h); });
+      h.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); otworz(i, h); }
+      });
+    });
+
+    lb.addEventListener('click', function (e) {
+      var t = e.target;
+      if (t.closest('.pol-lb-close')) return zamknij();
+      if (t.closest('.pol-lb-prev')) return pokaz(idx - 1);
+      if (t.closest('.pol-lb-next')) return pokaz(idx + 1);
+      if (t === lb || t.closest('.pol-lb-fig') === null) zamknij();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (!lb.classList.contains('is-open')) return;
+      if (e.key === 'Escape') zamknij();
+      else if (e.key === 'ArrowLeft') pokaz(idx - 1);
+      else if (e.key === 'ArrowRight') pokaz(idx + 1);
+    });
+
+    // sąsiednie zdjęcia w tle - przełączanie strzałką ma być natychmiastowe
+    setTimeout(function () {
+      pozycje.slice(0, 6).forEach(function (p) { var i = new Image(); i.src = p.src; });
+    }, 1500);
+  }
+
+  /* ---------- 2) POŚWIATA POD KURSOREM ----------
+     Kafel wie, gdzie jest ręka. Liczone w rAF, więc nie obciąża przewijania. */
+  function prepGlow() {
+    if (reduce) return;
+    if (!(window.matchMedia && window.matchMedia('(hover:hover) and (min-width:900px)').matches)) return;
+    var cele = all('.gallery .tile, .gallery-masonry .m-tile, .gateway, .split-art, .svc-row-art');
+    cele.forEach(function (el) {
+      el.classList.add('pol-glow');
+      var czeka = false, x = 0, y = 0;
+      el.addEventListener('mousemove', function (e) {
+        var r = el.getBoundingClientRect();
+        x = ((e.clientX - r.left) / r.width) * 100;
+        y = ((e.clientY - r.top) / r.height) * 100;
+        if (czeka) return;
+        czeka = true;
+        requestAnimationFrame(function () {
+          el.style.setProperty('--mx', x.toFixed(1) + '%');
+          el.style.setProperty('--my', y.toFixed(1) + '%');
+          czeka = false;
+        });
+      });
+    });
+  }
+
+  /* ---------- 3) PRZEJŚCIA MIĘDZY PODSTRONAMI (fallback) ----------
+     Chrome/nowe Safari robią to natywnie (@view-transition w CSS). Firefox
+     i starsze Safari dostają to samo wrażenie na klasie: strona łagodnie
+     schodzi, dopiero potem następuje nawigacja.
+     Bezpieczniki (bo tu najłatwiej zostawić białą stronę):
+       • watchdog zdejmuje klasę po 1,2 s, gdy nawigacja nie doszła,
+       • `pageshow` zdejmuje ją po powrocie „wstecz" (bfcache),
+       • omijamy wszystko, co nie jest zwykłym kliknięciem w naszą podstronę. */
+  function prepPageFade() {
+    if (reduce) return;
+    if (typeof document.startViewTransition === 'function') return;  // ma natywne, nie dublujemy
+    docEl.classList.add('pol-fb-on');
+
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target.closest && e.target.closest('a');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      if (!href || href.charAt(0) === '#' || a.target === '_blank' || a.hasAttribute('download')) return;
+      if (/^(tel:|mailto:|javascript:)/i.test(href)) return;
+      var url;
+      try { url = new URL(a.href, location.href); } catch (err) { return; }
+      if (url.origin !== location.origin) return;
+      if (url.pathname === location.pathname && url.search === location.search) return;  // ta sama strona
+
+      e.preventDefault();
+      docEl.classList.add('pol-out');
+      var poszlo = false;
+      setTimeout(function () { poszlo = true; location.href = a.href; }, 230);
+      setTimeout(function () { if (!poszlo) docEl.classList.remove('pol-out'); }, 1200);
+    });
+
+    window.addEventListener('pageshow', function () { docEl.classList.remove('pol-out'); });
+  }
+
+  function start() {
+    try { prepLightbox(); } catch (e) {}
+    try { prepGlow(); } catch (e) {}
+    try { prepPageFade(); } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+
+/* === WARSTWA PREMIUM (retrofit) === */
+/* ============================================================
+   OŚ PROCESU „PREMIUM" + POWRÓT NA GÓRĘ + WEJŚCIE NAZWY W HERO
+   (08.08.2026 — wdrożenie decyzji K. z warsztatu ruchu II)
+
+   ZASADA (ta sama co w motion.js): stan „ukryty" nadaje WYŁĄCZNIE ten skrypt,
+   klasą na <html>. Gdy go zabraknie albo rzuci wyjątek — strona wygląda jak przed
+   zmianą. Nigdy pusty ekran, nigdy niewidoczna treść.
+
+   Każdy blok jest osobną funkcją w osobnym try — błąd w jednym NIE zabija reszty
+   (wpadka z 08.08: własny kod w tym samym <script> co main.js przestał działać,
+   bo wyjątek wyżej ubił cały blok).
+   ============================================================ */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var safe = function (name, fn) { try { fn(); } catch (e) { /* jeden efekt mniej, strona działa */ } };
+
+  /* ---------- 1) OŚ PROCESU ----------
+     10.08.2026 — mechanika obsługuje KAŻDY kształt procesu, nie tylko pionową oś.
+     Powód (zgłoszenie K. po demie Patris): licznik, pasek postępu i zapalanie kroków
+     żyły wyłącznie w `.proces-os` (rodziny fachowcy/klinika/studio). Rodziny auto i dom
+     mają WŁASNE kształty — poziomy rząd i wiersze katalogowe — i celowo mają je zachować
+     (anty-bliźniak), więc to mechanika musi się dopasować do kształtu, a nie odwrotnie.
+     Kroki wskazuje `[data-os-steps]`; przy układzie POZIOMYM (wszystkie kroki na jednej
+     wysokości) postęp liczymy z przejścia CAŁEJ sekcji przez ekran, bo pojedyncze kroki
+     nie mijają środka ekranu po kolei. ---------- */
+  safe('os', function () {
+    [].slice.call(document.querySelectorAll('.proces-os, .os-mech')).forEach(function (sec) {
+      var items = [].slice.call(sec.querySelectorAll('[data-os-steps] > li'));
+      if (!items.length) items = [].slice.call(sec.querySelectorAll('.proces-line > li'));
+      if (items.length < 2) return;
+      osSekcja(sec, items);
+    });
+  });
+
+  function osSekcja(sec, items) {
+    document.documentElement.classList.add('os-on');
+    // kierunek wjazdu naprzemiennie — wynika z POZYCJI kroku, nie z losowania
+    items.forEach(function (li, i) {
+      li.style.setProperty('--os-dx', (i % 2 ? '-1.4rem' : '1.4rem'));
+      li.style.setProperty('--os-i', i);   // opóźnienie kaskady w układzie poziomym (CSS)
+    });
+
+    var cur = sec.querySelector('.pc-cur'), bar = sec.querySelector('.proc-bar > i'), now = sec.querySelector('.proc-now');
+    var titles = items.map(function (li) { var h = li.querySelector('h3'); return h ? h.textContent : ''; });
+    // POZIOMY układ = wszystkie kroki startują na tej samej wysokości (rząd kart w rodzinie auto).
+    // Mierzymy przy każdym przeliczeniu, bo na telefonie ten sam rząd zawija się w kolumnę.
+    function poziomy() {
+      var a = items[0].getBoundingClientRect(), b = items[items.length - 1].getBoundingClientRect();
+      return Math.abs(a.top - b.top) < 40;
+    }
+
+    function upd() {
+      var vh = window.innerHeight, mid = vh * 0.52, best = -1, bestD = Infinity;
+      if (poziomy()) {
+        // Rząd kart mija ekran w całości, więc kroki NIE mogą czekać na osobne przewinięcie —
+        // po wejściu sekcji zapalają się wszystkie, kaskadą (opóźnienie per krok siedzi w CSS).
+        // Inaczej klient widziałby przygaszone karty i czytał to jako usterkę, nie jako efekt.
+        var rs = sec.getBoundingClientRect();
+        if (rs.top < vh * 0.85) items.forEach(function (li) { li.classList.add('os-seen'); });
+        // licznik i pasek nadal śledzą przewijanie — pokazują, gdzie w procesie jest czytelnik
+        var p = (vh * 0.82 - rs.top) / Math.max(1, rs.height + vh * 0.30);
+        p = Math.max(0, Math.min(1, p));
+        best = Math.max(0, Math.min(items.length - 1, Math.floor(p * items.length)));
+        if (rs.top > vh) best = -1;   // sekcja jeszcze pod ekranem — nic nie zapalamy
+      } else {
+        items.forEach(function (li, i) {
+          var r = li.getBoundingClientRect();
+          if (r.top < vh * 0.92) li.classList.add('os-seen');
+          var d = Math.abs((r.top + r.height / 2) - mid);
+          if (r.bottom > 0 && r.top < vh && d < bestD) { bestD = d; best = i; }
+        });
+      }
+      items.forEach(function (li, i) {
+        li.classList.toggle('os-live', i === best);
+        li.classList.toggle('os-done', best > -1 && i < best);
+      });
+      if (best > -1) {
+        var n = best + 1;
+        if (cur) cur.textContent = (n < 10 ? '0' : '') + n;
+        if (now) now.textContent = titles[best];
+        if (bar) bar.style.width = (n / items.length * 100) + '%';
+        // wypełnienie osi akcentem do ŚRODKA aktywnej kropki (premium: postęp widać na linii)
+        try {
+          var lin = sec.querySelector('.proces-line'), akt = items[best];
+          if (lin && akt) {
+            var rl = lin.getBoundingClientRect(), ra = akt.getBoundingClientRect();
+            var pkt = (ra.top - rl.top) + Math.min(ra.height, 44) / 2 + 6;
+            lin.style.setProperty('--os-fill', Math.max(0, Math.min(100, pkt / rl.height * 100)) + '%');
+          }
+        } catch (e) {}
+      }
+    }
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () { upd(); ticking = false; });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    // Przeliczenie po doładowaniu zdjęć: układ przesuwa się PO pierwszym pomiarze, a zdarzenie
+    // przewijania wtedy nie leci — bez tego kroki potrafią zostać przygaszone mimo że są na ekranie.
+    window.addEventListener('load', upd);
+    [60, 400, 1200, 2500].forEach(function (t) { setTimeout(upd, t); });
+    upd();
+  }
+
+  /* ---------- 2) POWRÓT NA GÓRĘ ---------- */
+  safe('toTop', function () {
+    var btn = document.createElement('button');
+    btn.className = 'to-top';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Wróć na górę strony');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    document.body.appendChild(btn);
+    btn.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    });
+    var t = false;
+    function upd() {
+      if (t) return; t = true;
+      requestAnimationFrame(function () {
+        btn.classList.toggle('show', window.scrollY > window.innerHeight * 1.2);
+        t = false;
+      });
+    }
+    window.addEventListener('scroll', upd, { passive: true });
+    upd();
+  });
+
+  /* ---------- 3) WEJŚCIE NAZWY W HERO ----------
+     Wariant „nazwa ustępuje miejsca" (wybór K. z warsztatu): nazwa wchodzi duża,
+     po chwili siada do swojego rozmiaru i robi miejsce nagłówkowi sprzedażowemu. */
+  safe('brand', function () {
+    var bm = document.querySelector('.hero-cine .brandmark');
+    if (!bm || reduce) return;
+    document.documentElement.classList.add('bm-on');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { bm.classList.add('bm-in'); });
+    });
+    // Bezpiecznik czasowy: gdyby przejście nie wystartowało (np. karta w tle przy wejściu),
+    // po sekundzie i tak odsłaniamy treść — nikt nigdy nie zobaczy pustego hero.
+    setTimeout(function () { bm.classList.add('bm-in'); }, 1000);
+  });
+})();
+
+
+
+/* ============================================================
+   WARSTWA „PŁYNNOŚĆ" — 12.08.2026 (prośba Szymona)
+   Para do bloku „WARSTWA PŁYNNOŚĆ" w styles.css.
+
+   FILOZOFIA (ta sama, co w motion.js): ten blok może paść w całości i strona
+   ma dalej wyglądać oraz działać jak przed nim. Dlatego każdy efekt siedzi
+   w osobnym try — błąd jednego nie zabija pozostałych — a żaden z nich nie
+   ukrywa treści (stany startowe nadaje CSS tylko dla rzeczy ozdobnych).
+   ============================================================ */
+(function () {
+  'use strict';
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var safe = function (fn) { try { fn(); } catch (e) { /* jeden efekt mniej, strona żyje */ } };
+  function fine() {
+    return !!(window.matchMedia &&
+      window.matchMedia('(hover:hover) and (pointer:fine) and (min-width:900px)').matches);
+  }
+  function all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+  /* ---------- 1) POSTĘP WYJŚCIA NAGŁÓWKA (--sx-p) ----------
+     Jedna zmienna 0→1 opisuje, jak daleko nagłówek zszedł z ekranu. CSS robi
+     z niej odjazd treści i wygaszenie zachęty do przewijania. Liczone w rAF
+     na pasywnym scrollu — koszt pomijalny, zero własnej pętli. */
+  safe(function () {
+    if (reduce) return;
+    var hero = document.querySelector('.hero-cine, .pagehead');
+    if (!hero) return;
+    var czeka = false;
+    function upd() {
+      var h = hero.offsetHeight || 0;
+      // BEZPIECZNIK: gdyby pomiar wyszedł absurdalnie mały (jeszcze nieułożony układ,
+      // ukryta karta), `p` skoczyłoby do 1 i treść nagłówka zgasłaby na SAMEJ GÓRZE
+      // strony. Wtedy nic nie ustawiamy — nagłówek stoi nieruchomo, jak przed tą warstwą.
+      if (h < 200) { czeka = false; return; }
+      var p = window.scrollY / (h * 0.85);
+      p = p < 0 ? 0 : (p > 1 ? 1 : p);
+      hero.style.setProperty('--sx-p', p.toFixed(3));
+      czeka = false;
+    }
+    window.addEventListener('scroll', function () {
+      if (czeka) return;
+      czeka = true;
+      requestAnimationFrame(upd);
+    }, { passive: true });
+    window.addEventListener('resize', upd);
+    upd();
+  });
+
+  /* ---------- 2) ZACHĘTA DO PRZEWINIĘCIA ----------
+     Tylko duży ekran z myszą: na telefonie i tak widać, że strona jest dłuższa,
+     a w hero jest ciasno (CTA + ocena). */
+  safe(function () {
+    if (reduce || !fine()) return;
+    var hero = document.querySelector('.hero-cine');
+    if (!hero || hero.querySelector('.sx-cue')) return;
+    var cue = document.createElement('div');
+    cue.className = 'sx-cue';
+    cue.setAttribute('aria-hidden', 'true');
+    cue.innerHTML = '<span class="sx-cue-txt">Przewiń</span>' +
+                    '<span class="sx-cue-line"><i></i></span>';
+    hero.appendChild(cue);
+  });
+
+  /* ---------- 3) POCHYLENIE KAFLI ZA KURSOREM ----------
+     Podajemy CSS-owi dwa kąty (--sx-rx/--sx-ry), a resztę robi transition —
+     dzięki temu ruch jest miękki i nie liczymy nic w pętli.
+     ⛔ Nie ruszamy zdjęcia nagłówka ani niczego w pierwszym ekranie. */
+  safe(function () {
+    if (reduce || !fine()) return;
+    var MAX = 3.2;
+    all('.gallery .tile, .gateway, .split-art').forEach(function (el) {
+      if (el.closest('.hero-cine, .pagehead')) return;
+      el.classList.add('sx-tilt');
+      var czeka = false, rx = 0, ry = 0;
+      el.addEventListener('mousemove', function (e) {
+        var r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        ry = ((e.clientX - (r.left + r.width / 2)) / r.width) * 2 * MAX;
+        rx = -((e.clientY - (r.top + r.height / 2)) / r.height) * 2 * MAX;
+        if (czeka) return;
+        czeka = true;
+        requestAnimationFrame(function () {
+          el.style.setProperty('--sx-ry', ry.toFixed(2) + 'deg');
+          el.style.setProperty('--sx-rx', rx.toFixed(2) + 'deg');
+          czeka = false;
+        });
+      });
+      el.addEventListener('mouseleave', function () {
+        el.style.setProperty('--sx-ry', '0deg');
+        el.style.setProperty('--sx-rx', '0deg');
+      });
+    });
+  });
+
+  /* ---------- 4) KÓŁKO „POWIĘKSZ" ZA KURSOREM ----------
+     Lightbox galerii istniał, ale nic go nie zdradzało. Kółko pokazuje, że
+     zdjęcie da się otworzyć — i dopiero wtedy chowamy rodzimy kursor.
+     Warunek: kafle NIE są linkami (te mają swoje zadanie, nie powiększanie). */
+  safe(function () {
+    if (reduce || !fine()) return;
+    var kafle = all('.gallery .tile, .gallery-masonry .m-tile').filter(function (h) {
+      return h.querySelector('img') && !h.closest('a');
+    });
+    if (kafle.length < 2) return;
+
+    var kolko = document.createElement('div');
+    kolko.className = 'sx-mag';
+    kolko.setAttribute('aria-hidden', 'true');
+    kolko.innerHTML = '<span>Powiększ</span>';
+    document.body.appendChild(kolko);
+    document.documentElement.classList.add('sx-mag-on');
+
+    var widoczne = false, czeka = false, x = 0, y = 0;
+    function ruch(e) {
+      x = e.clientX; y = e.clientY;
+      if (czeka) return;
+      czeka = true;
+      requestAnimationFrame(function () {
+        kolko.style.translate = x + 'px ' + y + 'px';
+        czeka = false;
+      });
+    }
+    kafle.forEach(function (el) {
+      el.addEventListener('mouseenter', function (e) {
+        widoczne = true;
+        ruch(e);
+        kolko.classList.add('is-on');
+      });
+      el.addEventListener('mousemove', ruch);
+      el.addEventListener('mouseleave', function () {
+        widoczne = false;
+        kolko.classList.remove('is-on');
+      });
+    });
+    // bezpiecznik: gdyby mouseleave nie doszedł (szybki ruch, zmiana karty)
+    document.addEventListener('mouseleave', function () {
+      widoczne = false;
+      kolko.classList.remove('is-on');
+    });
+    window.addEventListener('blur', function () {
+      widoczne = false;
+      kolko.classList.remove('is-on');
+    });
+    // kółko nie ma prawa zostać na ekranie po otwarciu powiększenia
+    document.addEventListener('click', function () {
+      if (!widoczne) return;
+      widoczne = false;
+      kolko.classList.remove('is-on');
+    });
+  });
+})();
